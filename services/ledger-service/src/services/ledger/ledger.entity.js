@@ -1,4 +1,5 @@
 const { ledgerInvariantStatus } = require('../../metrics/metrics');
+const crypto = require('node:crypto');
 
 module.exports.createEntry = ({ pool }) => async (req, res) => {
   let client;
@@ -55,6 +56,27 @@ module.exports.createEntry = ({ pool }) => async (req, res) => {
       [transactionId, receiverId, amount, currency, metadata]
     );
 
+    const prevRes = await client.query(
+      `SELECT hash FROM ledger_audit_log ORDER BY id DESC LIMIT 1 FOR UPDATE`
+    );
+    const prevHash = prevRes.rowCount > 0 ? prevRes.rows[0].hash : null;
+    const auditPayload = JSON.stringify({
+      senderId,
+      receiverId,
+      amount,
+      currency,
+      referenceId,
+      metadata
+    });
+    const chainInput = `${prevHash || 'GENESIS'}|${transactionId}|TRANSFER_CREATED|${auditPayload}`;
+    const hash = crypto.createHash('sha256').update(chainInput).digest('hex');
+
+    await client.query(
+      `INSERT INTO ledger_audit_log (transaction_id, event_type, payload, prev_hash, hash)
+       VALUES ($1, $2, $3::jsonb, $4, $5)`,
+      [transactionId, 'TRANSFER_CREATED', auditPayload, prevHash, hash]
+    );
+
     await client.query('COMMIT');
 
     return res.status(201).json({
@@ -75,6 +97,61 @@ module.exports.createEntry = ({ pool }) => async (req, res) => {
 
   } finally {
     if (client) client.release();
+  }
+};
+
+module.exports.checkAuditChain = ({ pool }) => async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT id, transaction_id, event_type, payload, prev_hash, hash
+       FROM ledger_audit_log
+       ORDER BY id ASC`
+    );
+
+    let previousHash = null;
+    for (const row of result.rows) {
+      if (row.event_type === 'GENESIS') {
+        const expectedGenesis = crypto
+          .createHash('sha256')
+          .update(`GENESIS|${JSON.stringify(row.payload)}`)
+          .digest('hex');
+        if (row.hash !== expectedGenesis) {
+          return res.status(500).json({
+            success: false,
+            status: 'TAMPERED',
+            message: 'Audit chain tampering detected at genesis block',
+            recordId: row.id
+          });
+        }
+        previousHash = row.hash;
+        continue;
+      }
+
+      const payload = JSON.stringify(row.payload);
+      const expected = crypto
+        .createHash('sha256')
+        .update(`${row.prev_hash || 'GENESIS'}|${row.transaction_id}|${row.event_type}|${payload}`)
+        .digest('hex');
+
+      if (row.hash !== expected || row.prev_hash !== previousHash) {
+        return res.status(500).json({
+          success: false,
+          status: 'TAMPERED',
+          message: 'Audit chain tampering detected',
+          recordId: row.id
+        });
+      }
+      previousHash = row.hash;
+    }
+
+    return res.json({
+      success: true,
+      status: 'OK',
+      recordsChecked: result.rows.length
+    });
+  } catch (error) {
+    console.error('❌ Audit chain check error:', error);
+    return res.status(500).json({ success: false, message: 'Internal server error' });
   }
 };
 

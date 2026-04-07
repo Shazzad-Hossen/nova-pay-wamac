@@ -1,0 +1,383 @@
+{
+  "info": {
+    "name": "Fintech Microservices (Gateway)",
+    "_postman_id": "2cb703dc-b484-4f4e-a9ef-51ce02848f3a",
+    "description": "Full API collection for auth + fintech services through API gateway.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register Admin",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/auth/register",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@fin.local\",\n  \"password\": \"StrongPass123!\",\n  \"role\": \"admin\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Register User",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/auth/register",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@fin.local\",\n  \"password\": \"StrongPass123!\",\n  \"role\": \"user\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Login Admin",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.access_token) pm.environment.set('access_token', res.access_token);",
+                  "if (res.refresh_token) pm.environment.set('refresh_token', res.refresh_token);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@fin.local\",\n  \"password\": \"StrongPass123!\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Refresh Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.access_token) pm.environment.set('access_token', res.access_token);",
+                  "if (res.refresh_token) pm.environment.set('refresh_token', res.refresh_token);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/auth/refresh",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refresh_token\": \"{{refresh_token}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/auth/logout",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refresh_token\": \"{{refresh_token}}\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Account Service",
+      "item": [
+        {
+          "name": "Create Account",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.account && res.account.id) pm.environment.set('account_id_1', res.account.id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/api/accounts",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_id\": \"user_001\",\n  \"status\": \"ACTIVE\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Create Account 2",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.account && res.account.id) pm.environment.set('account_id_2', res.account.id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/api/accounts",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_id\": \"user_002\",\n  \"status\": \"ACTIVE\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Get Account",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{access_token}}" }],
+            "url": "{{baseUrl}}/api/accounts/{{account_id_1}}"
+          }
+        },
+        {
+          "name": "Get Account Balance",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{access_token}}" }],
+            "url": "{{baseUrl}}/api/accounts/{{account_id_1}}/balance"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Transaction Service",
+      "item": [
+        {
+          "name": "Create Transaction",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.environment.set('idempotency_key', 'tx-' + Date.now());"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.transactionId) pm.environment.set('transaction_id', res.transactionId);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "idempotency-key", "value": "{{idempotency_key}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/api/transactions",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sender_id\": \"{{account_id_1}}\",\n  \"receiver_id\": \"{{account_id_2}}\",\n  \"amount\": 100,\n  \"currency\": \"USD\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Get Transaction by ID",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{access_token}}" }],
+            "url": "{{baseUrl}}/api/transactions/{{transaction_id}}"
+          }
+        },
+        {
+          "name": "List PENDING Transactions",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{access_token}}" }],
+            "url": "{{baseUrl}}/api/transactions/status/PENDING"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Ledger Service",
+      "item": [
+        {
+          "name": "Ledger Check",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{access_token}}" }],
+            "url": "{{baseUrl}}/api/ledger/check"
+          }
+        },
+        {
+          "name": "Ledger Balance",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{access_token}}" }],
+            "url": "{{baseUrl}}/api/ledger/balance/{{account_id_1}}"
+          }
+        },
+        {
+          "name": "Ledger Transaction Entries",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{access_token}}" }],
+            "url": "{{baseUrl}}/api/ledger/transaction/{{transaction_id}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "FX Service",
+      "item": [
+        {
+          "name": "FX Convert + Set Rate",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/api/fx/convert",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"from_currency\": \"USD\",\n  \"to_currency\": \"BDT\",\n  \"amount\": 100,\n  \"rate\": 117.25\n}"
+            }
+          }
+        },
+        {
+          "name": "FX Convert Using Stored Rate",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/api/fx/convert",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"from_currency\": \"USD\",\n  \"to_currency\": \"BDT\",\n  \"amount\": 50\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Payroll Service",
+      "item": [
+        {
+          "name": "Run Payroll",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.runId) pm.environment.set('payroll_run_id', res.runId);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/api/payroll/run",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"batch_reference\": \"APR-2026-BATCH-001\",\n  \"jobs\": [\n    {\n      \"employee_id\": \"emp_001\",\n      \"sender_account_id\": \"{{account_id_1}}\",\n      \"receiver_account_id\": \"{{account_id_2}}\",\n      \"amount\": 2500,\n      \"currency\": \"USD\"\n    }\n  ]\n}"
+            }
+          }
+        },
+        {
+          "name": "Get Payroll Run",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{access_token}}" }],
+            "url": "{{baseUrl}}/api/payroll/run/{{payroll_run_id}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin Service (admin role)",
+      "item": [
+        {
+          "name": "Get Admin Transactions",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{access_token}}" }],
+            "url": "{{baseUrl}}/api/admin/transactions?status=PENDING&page=1&limit=20"
+          }
+        },
+        {
+          "name": "Get Ledger Status",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{access_token}}" }],
+            "url": "{{baseUrl}}/api/admin/ledger-status"
+          }
+        },
+        {
+          "name": "Trigger Manual Recovery",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/api/admin/recovery",
+            "body": { "mode": "raw", "raw": "{}" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "Gateway Health",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/health"
+          }
+        }
+      ]
+    }
+  ]
+}

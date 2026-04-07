@@ -190,6 +190,32 @@ services:
       ledger-service:
         condition: service_started
 
+  auth-service:
+    image: node:22-alpine
+    container_name: auth-service
+    working_dir: /app
+    command: sh -c "yarn install && yarn dev"
+    volumes:
+      - ../services/auth-service:/app
+    ports:
+      - "3008:3008"
+    environment:
+      PORT: 3008
+      ORIGIN: "*"
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASS: postgres
+      DB_NAME: auth_db
+      ACCESS_TOKEN_TTL: 15m
+      REFRESH_TOKEN_DAYS: 7
+      JWT_KID: fintech-auth-v1
+      AUTH_PRIVATE_KEY: ${AUTH_PRIVATE_KEY}
+      AUTH_PUBLIC_KEY: ${AUTH_PUBLIC_KEY}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
   api-gateway:
     image: nginx:stable-alpine
     container_name: fintech-api-gateway
@@ -209,6 +235,8 @@ services:
       payroll-service:
         condition: service_started
       admin-service:
+        condition: service_started
+      auth-service:
         condition: service_started
 
   prometheus:

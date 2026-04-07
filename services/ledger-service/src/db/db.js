@@ -1,5 +1,6 @@
 const { Pool, Client } = require('pg');
 require('dotenv').config();
+const crypto = require('node:crypto');
 
 const dbConfig = {
   host: process.env.DB_HOST,
@@ -81,6 +82,29 @@ const initDB = async () => {
         created_at TIMESTAMP DEFAULT NOW()
       );
     `);
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS ledger_audit_log (
+        id BIGSERIAL PRIMARY KEY,
+        transaction_id UUID REFERENCES ledger_transactions(id),
+        event_type VARCHAR(50) NOT NULL,
+        payload JSONB NOT NULL,
+        prev_hash VARCHAR(64),
+        hash VARCHAR(64) NOT NULL,
+        created_at TIMESTAMP DEFAULT NOW()
+      );
+    `);
+
+    const seedRes = await client.query('SELECT id FROM ledger_audit_log ORDER BY id DESC LIMIT 1');
+    if (seedRes.rowCount === 0) {
+      const payload = JSON.stringify({ seed: true });
+      const hash = crypto.createHash('sha256').update(`GENESIS|${payload}`).digest('hex');
+      await client.query(
+        `INSERT INTO ledger_audit_log (transaction_id, event_type, payload, prev_hash, hash)
+         VALUES (NULL, 'GENESIS', $1::jsonb, NULL, $2)`,
+        [payload, hash]
+      );
+    }
 
     await client.query('COMMIT');
 

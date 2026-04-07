@@ -1,6 +1,5 @@
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
-const jwt = require('jsonwebtoken');
 const morgan = require('morgan');
 const { randomUUID } = require('node:crypto');
 
@@ -28,28 +27,32 @@ const requestLogger = (serviceName) => {
   );
 };
 
-const authMiddleware = ({ publicPaths = [] } = {}) => (req, res, next) => {
+const gatewayAuth = ({ publicPaths = [] } = {}) => (req, res, next) => {
   if (publicPaths.some((p) => req.path === p || req.path.startsWith(`${p}/`))) {
     return next();
   }
 
-  const authHeader = req.header('authorization');
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({ success: false, message: 'Missing bearer token' });
+  const verified = req.header('x-auth-verified');
+  const userId = req.header('x-user-id');
+  const role = req.header('x-user-role');
+
+  if (verified !== 'true' || !userId || !role) {
+    return res.status(401).json({ success: false, message: 'Unauthorized (gateway auth required)' });
   }
 
-  const token = authHeader.slice(7);
-  const secret = process.env.JWT_SECRET;
-  if (!secret) {
-    return res.status(500).json({ success: false, message: 'JWT secret is not configured' });
-  }
+  req.user = {
+    sub: userId,
+    role
+  };
 
-  try {
-    req.user = jwt.verify(token, secret);
-    return next();
-  } catch (error) {
-    return res.status(401).json({ success: false, message: 'Invalid or expired token' });
+  return next();
+};
+
+const requireRole = (roles = []) => (req, res, next) => {
+  if (!req.user || !roles.includes(req.user.role)) {
+    return res.status(403).json({ success: false, message: 'Forbidden' });
   }
+  return next();
 };
 
 const buildLimiter = ({ windowMs = 60 * 1000, max = 100 } = {}) =>
@@ -66,17 +69,16 @@ const applySecurity = (app, { serviceName, sensitivePaths = [] }) => {
   app.use(helmet());
   app.use(requestLogger(serviceName));
 
-  app.use('/api', authMiddleware({ publicPaths: ['/health'] }));
+  app.use('/api', gatewayAuth({ publicPaths: ['/health'] }));
 
-  // Generic API limit
   app.use('/api', buildLimiter({ windowMs: 60 * 1000, max: 600 }));
 
-  // Stricter limits for sensitive endpoints
   sensitivePaths.forEach((path) => {
     app.use(`/api${path}`, buildLimiter({ windowMs: 60 * 1000, max: 60 }));
   });
 };
 
 module.exports = {
-  applySecurity
+  applySecurity,
+  requireRole
 };

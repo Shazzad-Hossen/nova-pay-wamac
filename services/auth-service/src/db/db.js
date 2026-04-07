@@ -28,10 +28,7 @@ const initDB = async () => {
 
     await rootClient.connect();
 
-    const res = await rootClient.query(
-      'SELECT 1 FROM pg_database WHERE datname=$1',
-      [DB_NAME]
-    );
+    const res = await rootClient.query('SELECT 1 FROM pg_database WHERE datname=$1', [DB_NAME]);
 
     if (res.rowCount === 0) {
       await rootClient.query(`CREATE DATABASE ${DB_NAME}`);
@@ -45,31 +42,29 @@ const initDB = async () => {
     client = await pool.connect();
     await client.query('BEGIN');
 
-    await client.query(`
-      CREATE TABLE IF NOT EXISTS exchange_rates (
-        from_currency VARCHAR(10) NOT NULL,
-        to_currency VARCHAR(10) NOT NULL,
-        rate NUMERIC(18,8) NOT NULL CHECK (rate > 0),
-        updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
-        PRIMARY KEY (from_currency, to_currency)
-      );
-    `);
+    await client.query('CREATE EXTENSION IF NOT EXISTS "pgcrypto";');
 
     await client.query(`
-      CREATE TABLE IF NOT EXISTS fx_quotes (
+      CREATE TABLE IF NOT EXISTS users (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        from_currency VARCHAR(10) NOT NULL,
-        to_currency VARCHAR(10) NOT NULL,
-        amount NUMERIC(18,8) NOT NULL CHECK (amount > 0),
-        rate NUMERIC(18,8) NOT NULL CHECK (rate > 0),
-        provider VARCHAR(50) NOT NULL DEFAULT 'internal_book',
-        expires_at TIMESTAMP NOT NULL,
-        used_at TIMESTAMP,
-        created_at TIMESTAMP NOT NULL DEFAULT NOW()
+        email VARCHAR(255) UNIQUE NOT NULL,
+        password_hash TEXT NOT NULL,
+        role VARCHAR(20) NOT NULL DEFAULT 'user' CHECK (role IN ('admin', 'user')),
+        created_at TIMESTAMP DEFAULT NOW()
       );
     `);
 
-    await client.query('CREATE INDEX IF NOT EXISTS idx_fx_quotes_expires_at ON fx_quotes (expires_at);');
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS refresh_tokens (
+        token TEXT PRIMARY KEY,
+        user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        expires_at TIMESTAMP NOT NULL,
+        created_at TIMESTAMP DEFAULT NOW()
+      );
+    `);
+
+    await client.query('CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user_id ON refresh_tokens (user_id);');
+    await client.query('CREATE INDEX IF NOT EXISTS idx_refresh_tokens_expires ON refresh_tokens (expires_at);');
 
     await client.query('COMMIT');
 
@@ -77,9 +72,7 @@ const initDB = async () => {
   } catch (err) {
     console.error('❌ DB init failed:', err.message);
 
-    if (client) {
-      await client.query('ROLLBACK');
-    }
+    if (client) await client.query('ROLLBACK');
 
     throw err;
   } finally {
