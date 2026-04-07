@@ -1,0 +1,19 @@
+{
+  "name": "payroll-service",
+  "version": "1.0.0",
+  "main": "src/index.js",
+  "license": "MIT",
+  "scripts": {
+    "dev": "nodemon src/index.js"
+  },
+  "dependencies": {
+    "bullmq": "^5.58.0",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.1",
+    "express": "^5.2.1",
+    "ioredis": "^5.8.1",
+    "morgan": "^1.10.1",
+    "nodemon": "^3.1.14",
+    "pg": "^8.20.0"
+  }
+}
