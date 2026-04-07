@@ -46,6 +46,50 @@ All business APIs go through:
 
 - `http://localhost:8080`
 
+## Deploy on Fresh VPS
+
+1. Copy env template and set real values:
+   - `cp .env.prod.example .env.prod`
+2. Choose one mode in `.env.prod`:
+   - IP only (no domain yet): `ENABLE_TLS=false` and set `PUBLIC_IP`
+   - Domain + HTTPS: `ENABLE_TLS=true` and set `DOMAIN_NAME` (DNS must point to VPS)
+3. Run one command from repo root:
+   - `./deploy.sh`
+
+The script will:
+- install Docker (if missing),
+- generate auth RSA keys (if missing),
+- obtain Let's Encrypt certificate only when `ENABLE_TLS=true`,
+- start production compose using:
+  - `infra/docker-compose.yml`
+  - `infra/docker-compose.prod.yml`
+
+After deployment:
+- IP mode: `http://<your-ip>/api/health` and `http://<your-ip>/docs`
+- TLS mode: `https://<your-domain>/api/health` and `https://<your-domain>/docs`
+
+## Auto Deploy from GitHub (main branch)
+
+This repo includes workflow:
+- `.github/workflows/deploy-main.yml`
+
+Behavior:
+- On every push to `main`, GitHub Actions SSHes into VPS and runs deployment.
+
+Required GitHub repository secrets:
+- `VPS_HOST` = `143.198.68.126`
+- `VPS_USER` = your SSH user (example: `root` or `ubuntu`)
+- `VPS_SSH_KEY` = private key content used by GitHub to SSH
+- `VPS_SSH_PORT` = SSH port (usually `22`)
+- `VPS_APP_DIR` = app directory on VPS (example: `/opt/wa-mac`)
+- `VPS_REPO_URL` = git URL for this repository
+
+One-time VPS prep:
+- Ensure `.env.prod` exists at `VPS_APP_DIR`
+- Ensure firewall allows `80` (and `443` if TLS mode later)
+
+After this, each commit/merge to `main` deploys automatically.
+
 ## API Endpoint Summary
 
 > All routes below are through gateway (`http://localhost:8080`).

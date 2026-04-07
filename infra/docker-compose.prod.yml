@@ -1,0 +1,107 @@
+services:
+  postgres:
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports: []
+
+  redis:
+    restart: always
+    ports: []
+
+  ledger-service:
+    restart: always
+    command: sh -c "yarn install --frozen-lockfile && node src/index.js"
+    ports: []
+    environment:
+      NODE_ENV: production
+      ORIGIN: ${ORIGIN}
+      JWT_SECRET: ${JWT_SECRET}
+
+  transaction-service:
+    restart: always
+    command: sh -c "yarn install --frozen-lockfile && node src/index.js"
+    ports: []
+    environment:
+      NODE_ENV: production
+      ORIGIN: ${ORIGIN}
+      JWT_SECRET: ${JWT_SECRET}
+      LEDGER_TIMEOUT_MS: ${LEDGER_TIMEOUT_MS}
+
+  account-service:
+    restart: always
+    command: sh -c "yarn install --frozen-lockfile && node src/index.js"
+    ports: []
+    environment:
+      NODE_ENV: production
+      ORIGIN: ${ORIGIN}
+      JWT_SECRET: ${JWT_SECRET}
+
+  fx-service:
+    restart: always
+    command: sh -c "yarn install --frozen-lockfile && node src/index.js"
+    ports: []
+    environment:
+      NODE_ENV: production
+      ORIGIN: ${ORIGIN}
+      JWT_SECRET: ${JWT_SECRET}
+      FX_QUOTE_TTL_SECONDS: ${FX_QUOTE_TTL_SECONDS}
+
+  payroll-service:
+    restart: always
+    command: sh -c "yarn install --frozen-lockfile && node src/index.js"
+    ports: []
+    environment:
+      NODE_ENV: production
+      ORIGIN: ${ORIGIN}
+      JWT_SECRET: ${JWT_SECRET}
+      PAYROLL_WORKER_CONCURRENCY: ${PAYROLL_WORKER_CONCURRENCY}
+      PAYROLL_JOB_ATTEMPTS: ${PAYROLL_JOB_ATTEMPTS}
+      PAYROLL_BACKOFF_MS: ${PAYROLL_BACKOFF_MS}
+
+  admin-service:
+    restart: always
+    command: sh -c "yarn install --frozen-lockfile && node src/index.js"
+    ports: []
+    environment:
+      NODE_ENV: production
+      ORIGIN: ${ORIGIN}
+      JWT_SECRET: ${JWT_SECRET}
+
+  auth-service:
+    restart: always
+    command: sh -c "yarn install --frozen-lockfile && node src/index.js"
+    ports: []
+    environment:
+      NODE_ENV: production
+      ORIGIN: ${ORIGIN}
+      ACCESS_TOKEN_TTL: ${ACCESS_TOKEN_TTL}
+      REFRESH_TOKEN_DAYS: ${REFRESH_TOKEN_DAYS}
+      JWT_KID: ${JWT_KID}
+      AUTH_PRIVATE_KEY: ${AUTH_PRIVATE_KEY}
+      AUTH_PUBLIC_KEY: ${AUTH_PUBLIC_KEY}
+
+  api-gateway:
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ${GATEWAY_NGINX_CONF:-./nginx/nginx.prod.conf}:/etc/nginx/nginx.conf:ro
+      - ./nginx/docs:/usr/share/nginx/html/docs:ro
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+
+  prometheus:
+    restart: always
+    ports:
+      - "127.0.0.1:9090:9090"
+
+  grafana:
+    restart: always
+    ports:
+      - "127.0.0.1:3007:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD}
