@@ -55,9 +55,9 @@ const recoverPendingTransactions = async ({ pool, settings }) => {
           `UPDATE transactions
            SET status = $1,
                ledger_transaction_id = COALESCE($2, ledger_transaction_id),
-               retry_count = $2,
+               retry_count = $3,
                last_retry_at = NOW(),
-               next_retry_at = $3
+               next_retry_at = $4
            WHERE id = $5`,
           [shouldRetry ? 'PENDING' : finalStatus, ledgerTransactionId, attempt, shouldRetry ? nextRetryAt : null, row.id]
         );

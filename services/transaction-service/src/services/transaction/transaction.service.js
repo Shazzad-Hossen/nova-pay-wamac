@@ -42,13 +42,38 @@ const callLedgerService = async (settings, payload) => {
 
   const url = new URL('/api/ledger', settings.ledgerServiceUrl);
 
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'content-type': 'application/json'
-    },
-    body: JSON.stringify(payload)
-  });
+  const timeoutMs = Number(settings.ledgerTimeoutMs || 3000);
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+  let response;
+  try {
+    response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json'
+      },
+      body: JSON.stringify(payload),
+      signal: controller.signal
+    });
+  } catch (error) {
+    clearTimeout(timeout);
+    if (error && error.name === 'AbortError') {
+      return {
+        success: false,
+        statusCode: 504,
+        message: `Ledger service timeout after ${timeoutMs}ms`
+      };
+    }
+
+    return {
+      success: false,
+      statusCode: 502,
+      message: 'Ledger service unreachable'
+    };
+  } finally {
+    clearTimeout(timeout);
+  }
 
   let data = null;
   try {

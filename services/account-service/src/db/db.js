@@ -1,5 +1,5 @@
 const { Pool, Client } = require('pg');
-require('dotenv').config({ override: true });
+require('dotenv').config({ override: process.env.DOTENV_OVERRIDE === 'true' });
 
 const dbConfig = {
   host: process.env.DB_HOST,

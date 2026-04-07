@@ -1,0 +1,189 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: fintech-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+    ports:
+      - "5434:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: fintech-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  ledger-service:
+    image: node:22-alpine
+    container_name: ledger-service
+    working_dir: /app
+    command: sh -c "yarn install && yarn dev"
+    volumes:
+      - ../services/ledger-service:/app
+    ports:
+      - "3001:3001"
+    environment:
+      PORT: 3001
+      ORIGIN: "*"
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASS: postgres
+      DB_NAME: ledger_db
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  transaction-service:
+    image: node:22-alpine
+    container_name: transaction-service
+    working_dir: /app
+    command: sh -c "yarn install && yarn dev"
+    volumes:
+      - ../services/transaction-service:/app
+    ports:
+      - "3002:3002"
+    environment:
+      PORT: 3002
+      ORIGIN: "*"
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASS: postgres
+      DB_NAME: transaction_db
+      LEDGER_SERVICE_URL: http://ledger-service:3001
+      IDEMPOTENCY_TTL_MINUTES: 10
+      RECOVERY_INTERVAL_MS: 30000
+      RECOVERY_MAX_RETRIES: 5
+      RECOVERY_BASE_DELAY_MS: 5000
+    depends_on:
+      postgres:
+        condition: service_healthy
+      ledger-service:
+        condition: service_started
+
+  account-service:
+    image: node:22-alpine
+    container_name: account-service
+    working_dir: /app
+    command: sh -c "yarn install && yarn dev"
+    volumes:
+      - ../services/account-service:/app
+    ports:
+      - "3003:3003"
+    environment:
+      PORT: 3003
+      ORIGIN: "*"
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASS: postgres
+      DB_NAME: account_db
+      LEDGER_SERVICE_URL: http://ledger-service:3001
+    depends_on:
+      postgres:
+        condition: service_healthy
+      ledger-service:
+        condition: service_started
+
+  fx-service:
+    image: node:22-alpine
+    container_name: fx-service
+    working_dir: /app
+    command: sh -c "yarn install && yarn dev"
+    volumes:
+      - ../services/fx-service:/app
+    ports:
+      - "3004:3004"
+    environment:
+      PORT: 3004
+      ORIGIN: "*"
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASS: postgres
+      DB_NAME: fx_db
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  payroll-service:
+    image: node:22-alpine
+    container_name: payroll-service
+    working_dir: /app
+    command: sh -c "yarn install && yarn dev"
+    volumes:
+      - ../services/payroll-service:/app
+    ports:
+      - "3005:3005"
+    environment:
+      PORT: 3005
+      ORIGIN: "*"
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASS: postgres
+      DB_NAME: payroll_db
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      TRANSACTION_SERVICE_URL: http://transaction-service:3002
+      PAYROLL_QUEUE_NAME: payroll-queue
+      PAYROLL_JOB_ATTEMPTS: 5
+      PAYROLL_BACKOFF_MS: 5000
+      PAYROLL_WORKER_CONCURRENCY: 5
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      transaction-service:
+        condition: service_started
+
+  admin-service:
+    image: node:22-alpine
+    container_name: admin-service
+    working_dir: /app
+    command: sh -c "yarn install && yarn dev"
+    volumes:
+      - ../services/admin-service:/app
+    ports:
+      - "3006:3006"
+    environment:
+      PORT: 3006
+      ORIGIN: "*"
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASS: postgres
+      DB_NAME: admin_db
+      TRANSACTION_SERVICE_URL: http://transaction-service:3002
+      LEDGER_SERVICE_URL: http://ledger-service:3001
+    depends_on:
+      postgres:
+        condition: service_healthy
+      transaction-service:
+        condition: service_started
+      ledger-service:
+        condition: service_started
+
+volumes:
+  postgres_data:
+  redis_data:

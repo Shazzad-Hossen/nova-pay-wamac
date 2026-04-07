@@ -1,4 +1,4 @@
-require('dotenv').config({ override: true });
+require('dotenv').config({ override: process.env.DOTENV_OVERRIDE === 'true' });
 const App = require('./app');
 const { initDB } = require('./db/db');
 

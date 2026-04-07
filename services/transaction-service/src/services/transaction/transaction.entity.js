@@ -1,5 +1,11 @@
 const { hashRequest, callLedgerService } = require('./transaction.service');
 
+const getNextRetryAt = (attempt) => {
+  const baseDelayMs = Number(process.env.RECOVERY_BASE_DELAY_MS || 5000);
+  const delay = baseDelayMs * Math.pow(2, Math.max(attempt - 1, 0));
+  return new Date(Date.now() + delay);
+};
+
 const claimIdempotency = async (client, { key, requestHash, expiresAt }) => {
   const insertRes = await client.query(
     `INSERT INTO idempotency_keys (key, request_hash, status, expires_at)
@@ -203,13 +209,25 @@ const createTransaction = ({ pool, settings }) => async (req, res) => {
 
     const ledgerResult = await callLedgerService(settings, ledgerPayload);
 
-    const finalStatus = ledgerResult.success ? 'COMPLETED' : 'FAILED';
-    const statusCode = ledgerResult.success ? 201 : (ledgerResult.statusCode || 502);
+    const finalStatus = ledgerResult.success ? 'COMPLETED' : 'PENDING';
+    const statusCode = ledgerResult.success ? 201 : 202;
     const ledgerTransactionId = ledgerResult.success && ledgerResult.data ? ledgerResult.data.transactionId : null;
 
     const responseBody = ledgerResult.success
       ? { success: true, transactionId, ledgerTransactionId, status: finalStatus }
-      : { success: false, message: ledgerResult.message || 'Ledger service error', status: finalStatus };
+      : { success: false, transactionId, message: ledgerResult.message || 'Ledger service error', status: finalStatus };
+
+    if (!ledgerResult.success && transactionId) {
+      await pool.query(
+        `UPDATE transactions
+         SET status = 'PENDING',
+             retry_count = 0,
+             last_retry_at = NULL,
+             next_retry_at = $2
+         WHERE id = $1`,
+        [transactionId, getNextRetryAt(1)]
+      );
+    }
 
     await finalizeIdempotency({
       pool,
