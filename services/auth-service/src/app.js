@@ -5,6 +5,7 @@ const http = require('node:http');
 const services = require('./services');
 const { pool } = require('./db/db');
 const { applySecurity } = require('./middleware/security');
+const { swaggerUi, swaggerSpec } = require('./docs/swagger');
 
 class App {
   constructor({ deps }) {
@@ -19,6 +20,8 @@ class App {
     this.express.use(cors({ origin: this.configs.origin, credentials: true }));
     applySecurity(this.express);
     this.express.use(express.json());
+    this.express.get('/openapi.json', (req, res) => res.json(swaggerSpec));
+    this.express.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
     this.express.use('/api', this.router);
 
     if (this.deps) {

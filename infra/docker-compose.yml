@@ -223,6 +223,7 @@ services:
       - "8080:80"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/docs:/usr/share/nginx/html/docs:ro
     depends_on:
       ledger-service:
         condition: service_started

@@ -50,6 +50,22 @@ All business APIs go through:
 
 > All routes below are through gateway (`http://localhost:8080`).
 
+## Swagger Docs
+
+Gateway aggregated docs:
+
+- `http://localhost:8080/docs`
+
+Each service now exposes OpenAPI JSON + Swagger UI directly:
+
+- `ledger-service`: `http://localhost:3001/openapi.json` and `http://localhost:3001/docs`
+- `transaction-service`: `http://localhost:3002/openapi.json` and `http://localhost:3002/docs`
+- `account-service`: `http://localhost:3003/openapi.json` and `http://localhost:3003/docs`
+- `fx-service`: `http://localhost:3004/openapi.json` and `http://localhost:3004/docs`
+- `payroll-service`: `http://localhost:3005/openapi.json` and `http://localhost:3005/docs`
+- `admin-service`: `http://localhost:3006/openapi.json` and `http://localhost:3006/docs`
+- `auth-service`: `http://localhost:3008/openapi.json` and `http://localhost:3008/docs`
+
 ### Auth Service
 
 #### `POST /api/auth/register`

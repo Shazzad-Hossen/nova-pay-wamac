@@ -7,6 +7,7 @@ const services = require('./services');
 const { pool } = require('./db/db');
 const { metricsHandler } = require('./metrics/metrics');
 const { applySecurity } = require('./middleware/security');
+const { swaggerUi, swaggerSpec } = require('./docs/swagger');
 
 class App {
   constructor({ deps }) {
@@ -24,6 +25,8 @@ class App {
       sensitivePaths: ['/transactions']
     });
     this.express.use(express.json());
+    this.express.get('/openapi.json', (req, res) => res.json(swaggerSpec));
+    this.express.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
     this.express.get('/metrics', metricsHandler);
     this.express.use('/api', this.router);
 
