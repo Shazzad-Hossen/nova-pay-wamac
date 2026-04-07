@@ -5,6 +5,8 @@ const morgan = require('morgan');
 const http = require('node:http');
 const services = require('./services');
 const { pool } = require('./db/db');
+const { metricsHandler } = require('./metrics/metrics');
+const { applySecurity } = require('./middleware/security');
 
 class App {
   constructor({ deps }) {
@@ -17,8 +19,12 @@ class App {
 
   async init() {
     this.express.use(cors({ origin: this.configs.origin, credentials: true }));
-    this.express.use(morgan('common'));
+    applySecurity(this.express, {
+      serviceName: 'transaction-service',
+      sensitivePaths: ['/transactions']
+    });
     this.express.use(express.json());
+    this.express.get('/metrics', metricsHandler);
     this.express.use('/api', this.router);
 
     if (this.deps) {

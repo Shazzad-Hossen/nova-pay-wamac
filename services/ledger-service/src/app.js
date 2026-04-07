@@ -5,6 +5,8 @@ const morgan = require('morgan');
 const http= require('node:http');
 const  setvices = require('./services');
 const { pool } = require('./db/db');
+const { metricsHandler } = require('./metrics/metrics');
+const { applySecurity } = require('./middleware/security');
 
 
 class App {
@@ -18,8 +20,12 @@ class App {
 
     async init(){
         this.express.use(cors({origin: this.configs.origin, credentials: true}))
-        this.express.use(morgan('common'));
+        applySecurity(this.express, {
+          serviceName: 'ledger-service',
+          sensitivePaths: ['/ledger']
+        });
         this.express.use(express.json());
+        this.express.get('/metrics', metricsHandler);
         this.express.use('/api', this.router);
 
            //load all dependencies

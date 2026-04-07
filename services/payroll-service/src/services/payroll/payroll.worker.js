@@ -1,6 +1,7 @@
 const { Worker } = require('bullmq');
 const { createRedisConnection } = require('../../queue/queue');
 const { callTransactionService, updateRunAggregates } = require('./payroll.service');
+const { queueJobsProcessed, queueJobsFailed } = require('../../metrics/metrics');
 
 const startPayrollWorker = ({ pool, settings, connection }) => {
   const workerConnection = connection || createRedisConnection(settings);
@@ -49,6 +50,7 @@ const startPayrollWorker = ({ pool, settings, connection }) => {
       );
 
       await updateRunAggregates(pool, payrollJob.run_id);
+      queueJobsProcessed.inc();
       return { payrollJobId: payrollJob.id, transactionId };
     },
     {
@@ -75,6 +77,7 @@ const startPayrollWorker = ({ pool, settings, connection }) => {
         if (runId) {
           await updateRunAggregates(pool, runId);
         }
+        queueJobsFailed.inc();
       } catch (eventError) {
         console.error('❌ Worker failure handler error:', eventError);
       }

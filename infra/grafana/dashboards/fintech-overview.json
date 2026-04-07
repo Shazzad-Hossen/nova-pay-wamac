@@ -1,0 +1,66 @@
+{
+  "annotations": {"list": []},
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "type": "timeseries",
+      "title": "Transactions Total (rate)",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+      "targets": [{"expr": "rate(transactions_total[5m])", "refId": "A"}]
+    },
+    {
+      "type": "timeseries",
+      "title": "Transactions Failed (rate)",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+      "targets": [{"expr": "rate(transactions_failed[5m])", "refId": "A"}]
+    },
+    {
+      "type": "timeseries",
+      "title": "Transactions Pending (rate)",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+      "targets": [{"expr": "rate(transactions_pending[5m])", "refId": "A"}]
+    },
+    {
+      "type": "stat",
+      "title": "Ledger Invariant Status",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+      "targets": [{"expr": "ledger_invariant_status", "refId": "A"}],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            {"type": "value", "options": {"0": {"text": "BROKEN"}, "1": {"text": "OK"}}}
+          ],
+          "thresholds": {"mode": "absolute", "steps": [{"color": "red", "value": null}, {"color": "green", "value": 1}]}
+        },
+        "overrides": []
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Queue Jobs Processed (rate)",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 16},
+      "targets": [{"expr": "rate(queue_jobs_processed[5m])", "refId": "A"}]
+    },
+    {
+      "type": "timeseries",
+      "title": "Queue Jobs Failed (rate)",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 16},
+      "targets": [{"expr": "rate(queue_jobs_failed[5m])", "refId": "A"}]
+    }
+  ],
+  "refresh": "10s",
+  "schemaVersion": 39,
+  "style": "dark",
+  "tags": ["fintech", "microservices"],
+  "templating": {"list": []},
+  "time": {"from": "now-1h", "to": "now"},
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "Fintech Service Observability",
+  "version": 1,
+  "weekStart": ""
+}

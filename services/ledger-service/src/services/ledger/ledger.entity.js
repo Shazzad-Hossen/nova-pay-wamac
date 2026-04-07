@@ -1,3 +1,5 @@
+const { ledgerInvariantStatus } = require('../../metrics/metrics');
+
 module.exports.createEntry = ({ pool }) => async (req, res) => {
   let client;
 
@@ -107,6 +109,7 @@ module.exports.checkEntry = ({ pool }) => async (req, res) => {
 
     // ❌ যদি imbalance থাকে
     if (result.rows.length > 0) {
+      ledgerInvariantStatus.set(0);
       return res.status(500).json({
         success: false,
         status: "BROKEN",
@@ -116,6 +119,7 @@ module.exports.checkEntry = ({ pool }) => async (req, res) => {
     }
 
     // ✅ সব ঠিক থাকলে
+    ledgerInvariantStatus.set(1);
     return res.json({
       success: true,
       status: "OK",
@@ -123,6 +127,7 @@ module.exports.checkEntry = ({ pool }) => async (req, res) => {
     });
 
   } catch (error) {
+    ledgerInvariantStatus.set(0);
     console.error("❌ Ledger check error:", error);
 
     return res.status(500).json({

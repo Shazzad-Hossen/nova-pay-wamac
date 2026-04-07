@@ -1,4 +1,5 @@
 const { callLedgerService } = require('./transaction.service');
+const { transactionsFailed, transactionsPending } = require('../../metrics/metrics');
 
 const recoverPendingTransactions = async ({ pool, settings }) => {
   const client = await pool.connect();
@@ -43,6 +44,11 @@ const recoverPendingTransactions = async ({ pool, settings }) => {
       const nextDelayMs = baseDelayMs * Math.pow(2, Math.max(attempt - 1, 0));
       const nextRetryAt = new Date(Date.now() + nextDelayMs);
       const shouldRetry = !ledgerResult.success && attempt < maxRetries;
+      if (shouldRetry) {
+        transactionsPending.inc();
+      } else if (!ledgerResult.success) {
+        transactionsFailed.inc();
+      }
 
       const responseBody = ledgerResult.success
         ? { success: true, transactionId: row.id, ledgerTransactionId, status: finalStatus }

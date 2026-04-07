@@ -1,4 +1,5 @@
 const { hashRequest, callLedgerService } = require('./transaction.service');
+const { transactionsTotal, transactionsFailed, transactionsPending } = require('../../metrics/metrics');
 
 const getNextRetryAt = (attempt) => {
   const baseDelayMs = Number(process.env.RECOVERY_BASE_DELAY_MS || 5000);
@@ -195,6 +196,7 @@ const createTransaction = ({ pool, settings }) => async (req, res) => {
     );
 
     transactionId = txRes.rows[0].id;
+    transactionsTotal.inc();
 
     await client.query('COMMIT');
 
@@ -218,6 +220,7 @@ const createTransaction = ({ pool, settings }) => async (req, res) => {
       : { success: false, transactionId, message: ledgerResult.message || 'Ledger service error', status: finalStatus };
 
     if (!ledgerResult.success && transactionId) {
+      transactionsPending.inc();
       await pool.query(
         `UPDATE transactions
          SET status = 'PENDING',
@@ -249,6 +252,9 @@ const createTransaction = ({ pool, settings }) => async (req, res) => {
 
     if (idempotencyKey) {
       try {
+        if (transactionId) {
+          transactionsFailed.inc();
+        }
         await finalizeIdempotency({
           pool,
           key: idempotencyKey,

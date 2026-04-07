@@ -1,0 +1,19 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: 'transaction-service'
+    metrics_path: /metrics
+    static_configs:
+      - targets: ['transaction-service:3002']
+
+  - job_name: 'ledger-service'
+    metrics_path: /metrics
+    static_configs:
+      - targets: ['ledger-service:3001']
+
+  - job_name: 'payroll-service'
+    metrics_path: /metrics
+    static_configs:
+      - targets: ['payroll-service:3005']
